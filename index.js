@@ -7,7 +7,8 @@ const cors = require('cors');
 const app = express();
 const port = 3003;
 const mongoose = require('mongoose');
-app.use(cors()); 
+
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -28,6 +29,7 @@ const upload = multer({ storage });
 
 // In-memory store for generated templates
 const dataStore = {};
+const nameStore = {}; // New store to map random numbers to names
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Route to generate a new vCard link and QR code
@@ -54,8 +56,12 @@ app.post('/generate-link', upload.fields([{ name: 'profileImage' }, { name: 'cov
   const profileImage = req.files && req.files.profileImage ? `/uploads/${req.files.profileImage[0].filename}` : null;
   const coverImage = req.files && req.files.coverImage ? `/uploads/${req.files.coverImage[0].filename}` : null;
 
-  const normalizedName = name.toLowerCase();
-  dataStore[normalizedName] = {
+  let randomNumber;
+  do {
+    randomNumber = Math.floor(Math.random() * 1000000);
+  } while (dataStore[randomNumber]);
+
+  dataStore[randomNumber] = {
     profession,
     facebook,
     instagram,
@@ -71,10 +77,12 @@ app.post('/generate-link', upload.fields([{ name: 'profileImage' }, { name: 'cov
     coverImage
   };
 
-  const publicLink = `http://localhost:${port}/template/${encodeURIComponent(name.replace(/\s+/g, '-').toUpperCase())}`;
+  // Store the mapping of random number to name
+  nameStore[randomNumber] = name.toLowerCase();
+
+  const publicLink = `http://localhost:${port}/template/${randomNumber}`;
 
   try {
-    // Generate QR code as a Base64 string
     const qrCodeBase64 = await QRCode.toDataURL(publicLink);
     res.json({ publicLink, qrCodeBase64 });
   } catch (err) {
@@ -82,13 +90,16 @@ app.post('/generate-link', upload.fields([{ name: 'profileImage' }, { name: 'cov
   }
 });
 
-app.get('/template/:name', async (req, res) => {
-  const name = decodeURIComponent(req.params.name).replace(/-/g, ' ').toLowerCase();
-  const data = dataStore[name];
+app.get('/template/:number', async (req, res) => {
+  const number = parseInt(req.params.number, 10);
+  const data = dataStore[number];
 
   if (!data) {
     return res.status(404).send('Template not found');
   }
+
+  // Get the name for the display
+  const name = nameStore[number];
 
   const profileImageUrl = data.profileImage ? `http://localhost:${port}${data.profileImage}` : '#';
   const coverImageUrl = data.coverImage ? `http://localhost:${port}${data.coverImage}` : '#';
@@ -195,20 +206,20 @@ app.get('/template/:name', async (req, res) => {
 
           .contact-item i {
             margin-right: 10px;
-            color: gold; /* Change contact icon color to gold */
+            color: gold;
           }
 
           .social-links {
             display: flex;
-            justify-content: center; /* Center the social links */
-            margin-top: 20px; /* Add margin to the top */
-            padding: 20px; /* Add padding for spacing */
+            justify-content: center;
+            margin-top: 20px;
+            padding: 20px;
           }
 
           .social-icon {
             font-size: 24px;
-            color: gold; /* Change social icon color to silver */
-            margin: 0 10px; /* Space between icons */
+            color: gold;
+            margin: 0 10px;
           }
 
           .appointment-footer {
@@ -227,8 +238,8 @@ app.get('/template/:name', async (req, res) => {
       </head>
       <body>
         <div class="resume-template">
-          <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQbhgSe47Iwr20FTah4RCnutoUrsOeDN8id1A&s" alt="Cover Image" class="cover-image" />
-          <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTo3Xqrl4hFcEH_l8PCwaTk_AhAgql808_x_w&s" alt="Profile Image" class="profile-image" />
+          <img src="https://images.pexels.com/photos/1323206/pexels-photo-1323206.jpeg?cs=srgb&dl=pexels-mixu-513809-1323206.jpg&fm=jpg" alt="Cover Image" class="cover-image" />
+          <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTIVM5e8ISRJQukKAZcmEBN1cUf6ztd7ciFbA&s" alt="Profile Image" class="profile-image" />
           
           <div class="about-section">
             <div class="name">${name}</div>
@@ -281,7 +292,6 @@ app.get('/template/:name', async (req, res) => {
     res.status(500).send('Error generating template');
   }
 });
-
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
