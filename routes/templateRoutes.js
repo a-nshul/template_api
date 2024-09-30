@@ -7,7 +7,7 @@ const path = require('path');
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../uploads'));
+    cb(null, '/tmp'); // Use the temporary directory
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname));
