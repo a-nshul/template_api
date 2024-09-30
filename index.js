@@ -12,7 +12,22 @@ const port = process.env.PORT || 3003; // Use the PORT from .env or default to 3
 connectDB();
 
 // Middleware
-app.use(cors());
+// app.use(cors());
+const corsOptions = {
+  origin: [
+    "http://localhost:3003", // Local development URL
+    "https://template-api-peach.vercel.app", // Your live API URL
+    // "https://etimeflow-project-y194.vercel.app" // Your frontend URL
+  ],
+  credentials: true, // Allow credentials (cookies, authorization headers, etc.)
+  allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
+  exposedHeaders: ["X-Auth-Token"], // Expose custom headers
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Allowed methods
+  preflightContinue: false,
+  optionsSuccessStatus: 204, // For older browsers
+};
+app.use(cors(corsOptions));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
