@@ -16,7 +16,7 @@ connectDB();
 const corsOptions = {
   origin: [
     "http://localhost:3003", // Local development URL
-    "https://template-api-peach-jade.vercel.app", // Your live API URL
+    "https://template-api-kmu4.vercel.app", // Your live API URL
     "https://ibizzcard-3dt3.vercel.app/" // Your frontend URL
   ],
   credentials: true, // Allow credentials (cookies, authorization headers, etc.)
