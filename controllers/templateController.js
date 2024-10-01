@@ -325,7 +325,7 @@ const generateTemplate = async (req, res) => {
     await template.save();
 
     // Generate the public link
-    const publicLink = `http://localhost:3003/template/${template._id}`;
+    const publicLink = `https://template-api-kmu4.vercel.app/template/${template._id}`;
     const qrCodeBase64 = await QRCode.toDataURL(publicLink);
 
     res.json({ publicLink, qrCodeBase64 });
