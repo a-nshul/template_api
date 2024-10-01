@@ -249,66 +249,108 @@
 // };
 
 // module.exports = { generateTemplate, getTemplateByNumber };
-const QRCode = require('qrcode');
+const cloudinary = require('cloudinary').v2;
 const Template = require('../models/Template');
+const QRCode = require('qrcode');
 
-// In-memory stores
-const dataStore = {};
-const nameStore = {};
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-// Generate a new template and QR code
 const generateTemplate = async (req, res) => {
   try {
     const {
-      name, profession, facebook, instagram, linkedin, whatsapp, aboutMe, email,
-      mobile, location, appointmentDate, availableHours
+      name, profession, facebook, instagram, whatsapp, aboutMe, email,
+      mobile, location, appointmentDate, availableHours,
     } = req.body;
 
+    // Validate input
     if (!name || !profession || !facebook || !instagram || !whatsapp || !aboutMe || !email || !mobile || !location || !appointmentDate || !availableHours) {
       return res.status(400).json({ message: 'All fields are required to generate the link' });
     }
 
-    const profileImage = req.files && req.files.profileImage ? `/uploads/${req.files.profileImage[0].filename}` : null;
+    // Access the profile image from the request
+    const profileImage = req.file;
+    let profileImageUrl = null;
+
+    // Upload profile image to Cloudinary if it exists
+    if (profileImage) {
+      // Use the cloudinary upload function directly
+      try {
+        const result = await cloudinary.uploader.upload_stream(
+          { folder: 'profile_images' },
+          (error, result) => {
+            if (error) {
+              throw new Error('Cloudinary upload failed');
+            }
+            return result.secure_url; // Return the secure URL of the uploaded image
+          }
+        );
+
+        // Await the result of the upload
+        profileImageUrl = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream({ folder: 'profile_images' }, (error, result) => {
+            if (error) {
+              reject(new Error('Cloudinary upload failed'));
+            } else {
+              resolve(result.secure_url); // Get the secure URL of the uploaded image
+            }
+          });
+
+          stream.end(profileImage.buffer); // Use .end() to pass the buffer
+        });
+      } catch (error) {
+        return res.status(500).json({ message: error.message });
+      }
+    }
 
     // Save the template data in MongoDB
     const template = new Template({
-      name, profession, facebook, instagram, linkedin, whatsapp, aboutMe, email,
-      mobile, location, appointmentDate, availableHours, profileImage
+      name,
+      profession,
+      facebook,
+      instagram,
+      whatsapp,
+      aboutMe,
+      email,
+      mobile,
+      location,
+      appointmentDate,
+      availableHours,
+      profileImage: profileImageUrl,
     });
     await template.save();
 
-    // Use the template's _id to generate the public link
+    // Generate the public link
     const publicLink = `http://localhost:3003/template/${template._id}`;
     const qrCodeBase64 = await QRCode.toDataURL(publicLink);
 
-    // Store the data in memory (if needed, this can be removed if not required)
-    dataStore[template._id] = {
-      profession, facebook, instagram, linkedin, whatsapp, aboutMe, email, mobile,
-      location, appointmentDate, availableHours, profileImage,
-    };
-
-    nameStore[template._id] = name.toLowerCase();
-
     res.json({ publicLink, qrCodeBase64 });
   } catch (err) {
-    console.log({ message: err.message });
+    console.error(err); // Log the error for better debugging
     res.status(500).json({ message: 'Server error' });
   }
 };
 
 // Fetch the generated template using the unique template ID
-const getTemplateByNumber = (req, res) => {
+const getTemplateByNumber = async (req, res) => {
   const id = req.params.id; 
-  const data = dataStore[id];
-
-  if (!data) {
-    return res.status(404).send('Template not found');
-  }
-
-  const name = nameStore[id];
-  const profileImageUrl = data.profileImage ? `http://localhost:3003${data.profileImage}` : '#';
 
   try {
+    // Fetch the template from the database using the provided ID
+    const template = await Template.findById(id);
+
+    if (!template) {
+      return res.status(404).send('Template not found');
+    }
+
+    // Construct the profile image URL
+    const profileImageUrl = template.profileImage ? template.profileImage : '#';
+
+    // Render the template
     res.send(`
       <!DOCTYPE html>
       <html lang="en">
@@ -438,41 +480,41 @@ const getTemplateByNumber = (req, res) => {
           <img src="${profileImageUrl}" alt="Profile Image" class="profile-image" />
           
           <div class="about-section">
-            <div class="name">${name}</div>
-            <div class="profession">${data.profession}</div>
-            <div class="about-me">${data.aboutMe}</div>
+            <div class="name">${template.name}</div>
+            <div class="profession">${template.profession}</div>
+            <div class="about-me">${template.aboutMe}</div>
           </div>
 
           <div class="contact-section">
             <div class="contact-grid">
               <div class="contact-item">
                 <i class="fas fa-envelope"></i>
-                <strong>Email:</strong> ${data.email}
+                <strong>Email:</strong> ${template.email}
               </div>
               <div class="contact-item">
                 <i class="fas fa-phone"></i>
-                <strong>Mobile:</strong> ${data.mobile}
+                <strong>Mobile:</strong> ${template.mobile}
               </div>
               <div class="contact-item">
                 <i class="fas fa-map-marker-alt"></i>
-                <strong>Location:</strong> ${data.location}
+                <strong>Location:</strong> ${template.location}
               </div>
               <div class="contact-item">
                 <i class="fas fa-calendar-alt"></i>
-                <strong>Appointment Date:</strong> ${data.appointmentDate}
+                <strong>Appointment Date:</strong> ${template.appointmentDate}
               </div>
               <div class="contact-item">
                 <i class="fas fa-clock"></i>
-                <strong>Available Hours:</strong> ${data.availableHours}
+                <strong>Available Hours:</strong> ${template.availableHours}
               </div>
             </div>
           </div>
 
           <div class="social-links">
-            <a href="${data.facebook || '#'}"><i class="fab fa-facebook social-icon"></i></a>
-            <a href="${data.instagram || '#'}"><i class="fab fa-instagram social-icon"></i></a>
-            <a href="${data.linkedin || '#'}"><i class="fab fa-linkedin social-icon"></i></a>
-            <a href="${data.whatsapp || '#'}"><i class="fab fa-whatsapp social-icon"></i></a>
+            <a href="${template.facebook || '#'}"><i class="fab fa-facebook social-icon"></i></a>
+            <a href="${template.instagram || '#'}"><i class="fab fa-instagram social-icon"></i></a>
+            <a href="${template.linkedin || '#'}"><i class="fab fa-linkedin social-icon"></i></a>
+            <a href="${template.whatsapp || '#'}"><i class="fab fa-whatsapp social-icon"></i></a>
           </div>
 
           <div class="appointment-footer">
@@ -485,8 +527,11 @@ const getTemplateByNumber = (req, res) => {
       </html>
     `);
   } catch (err) {
+    console.error(err);
     res.status(500).send('Error generating template');
   }
 };
+
+
 
 module.exports = { generateTemplate, getTemplateByNumber };
