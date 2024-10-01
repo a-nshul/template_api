@@ -272,25 +272,16 @@ const generateTemplate = async (req, res) => {
       return res.status(400).json({ message: 'All fields are required to generate the link' });
     }
 
-    // Access the profile image from the request
-    const profileImage = req.file;
+    // Access the profile and cover images from the request
+    const profileImage = req.files.profileImage ? req.files.profileImage[0] : null; // Adjusting for multiple files
+    const coverImage = req.files.coverImage ? req.files.coverImage[0] : null; // Adjusting for multiple files
+
+    let coverImageUrl = null;
     let profileImageUrl = null;
 
     // Upload profile image to Cloudinary if it exists
     if (profileImage) {
-      // Use the cloudinary upload function directly
       try {
-        const result = await cloudinary.uploader.upload_stream(
-          { folder: 'profile_images' },
-          (error, result) => {
-            if (error) {
-              throw new Error('Cloudinary upload failed');
-            }
-            return result.secure_url; // Return the secure URL of the uploaded image
-          }
-        );
-
-        // Await the result of the upload
         profileImageUrl = await new Promise((resolve, reject) => {
           const stream = cloudinary.uploader.upload_stream({ folder: 'profile_images' }, (error, result) => {
             if (error) {
@@ -299,8 +290,25 @@ const generateTemplate = async (req, res) => {
               resolve(result.secure_url); // Get the secure URL of the uploaded image
             }
           });
-
           stream.end(profileImage.buffer); // Use .end() to pass the buffer
+        });
+      } catch (error) {
+        return res.status(500).json({ message: error.message });
+      }
+    }
+
+    // Upload cover image to Cloudinary if it exists
+    if (coverImage) {
+      try {
+        coverImageUrl = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream({ folder: 'cover_images' }, (error, result) => {
+            if (error) {
+              reject(new Error('Cloudinary upload failed'));
+            } else {
+              resolve(result.secure_url); // Get the secure URL of the uploaded image
+            }
+          });
+          stream.end(coverImage.buffer); // Use .end() to pass the buffer
         });
       } catch (error) {
         return res.status(500).json({ message: error.message });
@@ -321,6 +329,7 @@ const generateTemplate = async (req, res) => {
       appointmentDate,
       availableHours,
       profileImage: profileImageUrl,
+      coverImage: coverImageUrl,
     });
     await template.save();
 
@@ -337,7 +346,7 @@ const generateTemplate = async (req, res) => {
 
 // Fetch the generated template using the unique template ID
 const getTemplateByNumber = async (req, res) => {
-  const id = req.params.id; 
+  const id = req.params.id;
 
   try {
     // Fetch the template from the database using the provided ID
@@ -347,9 +356,10 @@ const getTemplateByNumber = async (req, res) => {
       return res.status(404).send('Template not found');
     }
 
-    // Construct the profile image URL
+    // Construct the profile and cover image URLs
     const profileImageUrl = template.profileImage ? template.profileImage : '#';
-
+    const coverImageUrl = template.coverImage ? template.coverImage : '#';
+    
     // Render the template
     res.send(`
       <!DOCTYPE html>
@@ -398,6 +408,13 @@ const getTemplateByNumber = async (req, res) => {
             left: 30px;
             object-fit: cover;
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+          }
+
+          .cover-image {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            position: relative;
           }
 
           .about-section {
@@ -477,6 +494,7 @@ const getTemplateByNumber = async (req, res) => {
       </head>
       <body>
         <div class="resume-template">
+          <img src="${coverImageUrl}" alt="Cover Image" class="cover-image" />
           <img src="${profileImageUrl}" alt="Profile Image" class="profile-image" />
           
           <div class="about-section">
@@ -516,21 +534,20 @@ const getTemplateByNumber = async (req, res) => {
             <a href="${template.linkedin || '#'}"><i class="fab fa-linkedin social-icon"></i></a>
             <a href="${template.whatsapp || '#'}"><i class="fab fa-whatsapp social-icon"></i></a>
           </div>
-
+          <div class="border"></div>
           <div class="appointment-footer">
-            <div class="border"></div>
-            <strong>Appointment Details</strong>
-            <div class="border"></div>
+            <p>Designed with ❤️ using <strong>API Resume Builder</strong></p>
           </div>
         </div>
       </body>
       </html>
     `);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Error generating template');
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server error');
   }
 };
+
 
 
 
