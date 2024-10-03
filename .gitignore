@@ -1,2 +1,20 @@
-.vercel
+# Ignore environment variables file
 .env
+
+# Ignore Vercel configuration directory
+.vercel
+
+# Ignore node_modules directory
+node_modules/
+
+# Ignore log files
+npm-debug.log
+yarn-error.log
+
+# Ignore build output (if applicable)
+dist/
+build/
+
+# Ignore other potentially sensitive files or folders
+.DS_Store
+Thumbs.db

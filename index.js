@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const connectDB = require('./config/dbConfig');
+const userRoutes = require('./routes/userRoutes');
 const templateRoutes = require('./routes/templateRoutes');
 require('dotenv').config(); // Load environment variables from .env file
 
@@ -16,6 +17,7 @@ connectDB();
 const corsOptions = {
   origin: [
     "http://localhost:3003", // Local development URL
+    "http://localhost:3002",
     "https://template-api-kmu4.vercel.app", // Your live API URL
     "https://ibizzcard-3dt3.vercel.app" // Your frontend URL
   ],
@@ -36,6 +38,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/', templateRoutes);
+app.use('/api/users', userRoutes);
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
