@@ -1,21 +1,23 @@
 const mongoose = require('mongoose');
 
 const templateSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  profession: { type: String, required: true },
-  facebook: { type: String, required: true },
-  instagram: { type: String, required: true },
+  name: { type: String },
+  profession: { type: String },
+  facebook: { type: String },
+  instagram: { type: String },
   linkedin: { type: String },
-  whatsapp: { type: String, required: true },
-  aboutMe: { type: String, required: true },
-  email: { type: String, required: true },
-  mobile: { type: String, required: true },
-  location: { type: String, required: true },
-  appointmentDate: { type: String, required: true },
-  availableHours: { type: String, required: true },
+  whatsapp: { type: String },
+  aboutMe: { type: String },
+  email: { type: String },
+  mobile: { type: String },
+  location: { type: String },
+  appointmentDate: { type: String },
+  availableHours: { type: String },
   profileImage: { type: String },
   coverImage: { type: String },
-  qrCode: { type: String },  // Store QR code image or link
+  qrCode: { type: String },
+  galleryImages: { type: [String], default: [] },
+  productImages: { type: [String], default: [] }
 }, { timestamps: true });
 
 const Template = mongoose.model('Template', templateSchema);

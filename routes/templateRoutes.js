@@ -8,8 +8,16 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Adjusting the upload to require two files
-router.post('/generate-link', upload.fields([{ name: 'profileImage' }, { name: 'coverImage' }]), templateController.generateTemplate);
-
+router.post('/generate-link', 
+    upload.fields([
+      { name: 'profileImage' }, 
+      { name: 'coverImage' }, 
+      { name: 'galleryImages' }, 
+      { name: 'productImages' }
+    ]), 
+    templateController.generateTemplate
+  );
+  
 router.get('/template/:id', templateController.getTemplateByNumber);
 
 module.exports = router;
